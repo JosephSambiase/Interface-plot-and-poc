@@ -1,4 +1,5 @@
 import os, sys
+import glob
 from constants import *
 from jpk.loadjpkfile import loadJPKfile
 from jpk.loadjpkthermalfile import loadJPKThermalFile
@@ -7,10 +8,11 @@ from load_uff import loadUFFtxt
 from uff import UFF
 import matplotlib.pyplot as plt
 from pyafmrheo.utils.force_curves import *
+from pyafmrheo.models.hertz import HertzModel
 
 # interface
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QPushButton, QHBoxLayout, QWidget
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QPushButton, QHBoxLayout, QWidget, QMessageBox
 from pyafmreader import loadfile
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
@@ -29,16 +31,20 @@ class MainWindow(QMainWindow):
         
 
         # Add a "Open" action to the File menu
-        open_action = file_menu.addAction('Open')
+        open_action = file_menu.addAction('Open a file')
         open_action.triggered.connect(self.open_file)
         
         plot_action = file_menu.addAction('Plot deflection vs height')
         plot_action.triggered.connect(self.plot_data)
         
-        analyze_action = file_menu.addAction('Point of contact as the origin')
+        analyze_action = file_menu.addAction('Plot the point of contact')
         analyze_action.triggered.connect(self.calculate_poc)
         
+        folder_action = file_menu.addAction('Open a folder')
+        folder_action.triggered.connect(self.open_folder)
         
+        force_action = file_menu.addAction('Plot force vs indentation')
+        force_action.triggered.connect(self.plot_force)
         
         self.define_buttons()
         self.plot_button.clicked.connect(self.plot_data)
@@ -65,7 +71,22 @@ class MainWindow(QMainWindow):
         filename, _ = QFileDialog.getOpenFileName(self, 'Open File', '', 'All files (*.*)')
         self.file = self.loadfile(filename)
 
+    def open_folder(self):
+        dirname = QFileDialog.getExistingDirectory(
+				self, 'Choose Directory', r'./'
+			)
+        if dirname != "" and dirname is not None:
+            valid_files = self.getFileList(dirname)
+            if valid_files != []:
+                self.loadfile(valid_files)
 
+    def getFileList(self, directory):
+        types = ('*.jpk-force', '*.jpk-force-map', '*.jpk-qi-data', '*.jpk-force.zip', '*.jpk-force-map.zip', '*.jpk-qi-data.zip', '*.spm', '*.pfc')
+        dataset_files = []
+        for files in types:
+            dataset_files.extend(glob.glob(f'{directory}/**/{files}', recursive=True))
+        return dataset_files
+    
     def loadfile(self, filepath):
         split_path = filepath.split(os.extsep)
         if os.name == 'nt' and split_path[-1] == '.zip':
@@ -155,26 +176,54 @@ class MainWindow(QMainWindow):
         # plt.grid()
         # plt.show()
         
+    def plot_force(self):
+        # self.poc[1] = 0
+        self.first_ext_seg.get_force_vs_indentation(self.poc, self.spring_constant)
+        app_indentation, app_force = self.first_ext_seg.indentation, self.first_ext_seg.force
+        #hertz_d0 = HertzModel.d0
+        
+        
+        pen = pg.mkPen(color=(0, 0, 255))
+        self.graphWidget = pg.PlotWidget()
+        self.setCentralWidget(self.graphWidget)
+        self.graphWidget.setBackground('w')
+        
+       
+        # self.graphWidget.plot(app_indentation-self.poc[0], app_force-self.poc[1], pen=pen)
+        self.graphWidget.plot(app_indentation, app_force, pen=pen)
+        
+        vori=pg.InfiniteLine(0, angle=90)
+        hori=pg.InfiniteLine(0, angle=0)
+        self.graphWidget.addItem(vori)
+        self.graphWidget.addItem(hori)
+        styles = {'color':'k', 'font-size':'20px'}
+        self.graphWidget.setLabel('left', 'Force [Newton]',**styles)
+        self.graphWidget.setLabel('bottom', 'Indentation [Meters]',**styles)
+        
+        
+
+
         
     def calculate_poc(self):
         
         
-        first_exted_seg_id, first_ext_seg = self.extend_segments[0]
-        first_ext_seg.preprocess_segment(self.deflection_sensitivity, self.height_channel)
+        first_exted_seg_id, self.first_ext_seg = self.extend_segments[0]
+
+        self.first_ext_seg.preprocess_segment(self.deflection_sensitivity, self.height_channel)
 
         last_ret_seg_id, last_ret_seg = self.retract_segments[-1]
         last_ret_seg.preprocess_segment(self.deflection_sensitivity, self.height_channel)
    
         xzero = last_ret_seg.zheight[-1] # Maximum height
-        first_ext_seg.zheight = xzero - first_ext_seg.zheight
+        self.first_ext_seg.zheight = xzero - self.first_ext_seg.zheight
         last_ret_seg.zheight = xzero - last_ret_seg.zheight
 
-        app_height = first_ext_seg.zheight
-        app_deflection = first_ext_seg.vdeflection
+        app_height = self.first_ext_seg.zheight
+        app_deflection = self.first_ext_seg.vdeflection
         ret_height = last_ret_seg.zheight
         ret_deflection = last_ret_seg.vdeflection
         
-        poc = get_poc_RoV_method(app_height, app_deflection, 350e-9)
+        self.poc = get_poc_RoV_method(app_height, app_deflection, 350e-9)
         
         # plt.plot(app_height, app_deflection)
         # plt.plot(ret_height, ret_deflection)
@@ -192,16 +241,20 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.graphWidget) 
         self.graphWidget.setBackground('w')
         
-        self.graphWidget.plot(app_height-poc[0], app_deflection-poc[1], pen=pen)
-        self.graphWidget.plot(ret_height-poc[0], ret_deflection-poc[1], pen=pen2)
-        # vLine=pg.InfiniteLine(pos=poc[0], angle=90, pen=pen3)
-        # self.graphWidget.addItem(vLine)
-        # hLine=pg.InfiniteLine(pos=poc[1], angle=0, pen=pen3)
-        # self.graphWidget.addItem(hLine)
-        vori=pg.InfiniteLine(0, angle=90,pen=pen3)
-        hori=pg.InfiniteLine(0, angle=0, pen=pen3)
-        self.graphWidget.addItem(vori)
-        self.graphWidget.addItem(hori)
+        self.graphWidget.plot(app_height, app_deflection, pen=pen)
+        self.graphWidget.plot(ret_height, ret_deflection, pen=pen2)
+        vLine=pg.InfiniteLine(pos=self.poc[0], angle=90, pen=pen3)
+        self.graphWidget.addItem(vLine)
+        hLine=pg.InfiniteLine(pos=self.poc[1], angle=0, pen=pen3)
+        self.graphWidget.addItem(hLine)
+    
+        # display poc coordinates
+        dlg = QMessageBox(self)
+        dlg.setWindowTitle("Point of contact coordinates")
+        dlg.setText("x: " + str(self.poc[0])+ ", y: " + str(self.poc[1]))
+        dlg.exec()        
+       
+
         
 
      
