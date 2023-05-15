@@ -1,4 +1,5 @@
 import os, sys
+import numpy as np
 import glob
 from constants import *
 from jpk.loadjpkfile import loadJPKfile
@@ -78,7 +79,52 @@ class MainWindow(QMainWindow):
         if dirname != "" and dirname is not None:
             valid_files = self.getFileList(dirname)
             if valid_files != []:
-                self.loadfile(valid_files)
+                for filename in glob.glob(os.path.join(dirname, '*.jpk-force')):
+                    print (filename)
+                    self.file = self.loadfile(filename)
+                    self.collectData()
+                    self.plot_force()
+                
+                    
+                    
+    def collectData(self):
+        self.deflection_sensitivity = None # m/V
+        # If None it will use the spring constant from the file
+        self.spring_constant = None # N/m
+        self.filemetadata = self.file.filemetadata
+        self.closed_loop = self.filemetadata['z_closed_loop']
+        self.file_deflection_sensitivity = self.filemetadata['defl_sens_nmbyV'] #nm/V
+        self.file_spring_constant = self.filemetadata['spring_const_Nbym'] #N/m
+        self.height_channel = self.filemetadata['height_channel_key']
+
+        if not self.deflection_sensitivity: self.deflection_sensitivity = self.file_deflection_sensitivity / 1e9 #m/V
+        if not self.spring_constant: self.spring_constant = self.file_spring_constant
+
+        self.curve_idx = 0
+        self.force_curve = self.file.getcurve(self.curve_idx)
+        self.extend_segments = self.force_curve.extend_segments
+        self.pause_segments = self.force_curve.pause_segments
+        self.modulation_segments = self.force_curve.modulation_segments
+        self.retract_segments = self.force_curve.retract_segments
+        self.force_curve_segments = self.force_curve.get_segments()
+        first_exted_seg_id, self.first_ext_seg = self.extend_segments[0]
+        self.first_ext_seg.preprocess_segment(self.deflection_sensitivity, self.height_channel)
+        last_ret_seg_id, last_ret_seg = self.retract_segments[-1]
+        last_ret_seg.preprocess_segment(self.deflection_sensitivity, self.height_channel)
+        xzero = last_ret_seg.zheight[-1] # Maximum height
+        self.first_ext_seg.zheight = xzero - self.first_ext_seg.zheight
+        last_ret_seg.zheight = xzero - last_ret_seg.zheight
+        app_height = self.first_ext_seg.zheight
+        app_deflection = self.first_ext_seg.vdeflection
+        ret_height = last_ret_seg.zheight
+        ret_deflection = last_ret_seg.vdeflection
+        #define pt of contact
+        self.poc = get_poc_RoV_method(app_height, app_deflection, 350e-9)
+
+                    
+                    
+                    
+    
 
     def getFileList(self, directory):
         types = ('*.jpk-force', '*.jpk-force-map', '*.jpk-qi-data', '*.jpk-force.zip', '*.jpk-force-map.zip', '*.jpk-qi-data.zip', '*.spm', '*.pfc')
@@ -111,20 +157,20 @@ class MainWindow(QMainWindow):
         
     def plot_data(self):
         # Shapes available: paraboloid, pyramid
-        indenter_shape = "paraboloid"
-        tip_parameter = 30 * 1e-9 # meters
+        # indenter_shape = "paraboloid"
+        # tip_parameter = 30 * 1e-9 # meters
         # Poisson ratio
-        poisson_ratio = 0.5
+        # poisson_ratio = 0.5
         # Max non contact region
-        maxnoncontact = 2.5 * 1e-6
+        # maxnoncontact = 2.5 * 1e-6
         # Window to find cp
-        windowforCP = 70 * 1e-9
+        # windowforCP = 70 * 1e-9
         # Smooth window
-        smooth_w = 1
+        # smooth_w = 1
         # t0 scaling factor
-        t0_scaling = 1
+        # t0_scaling = 1
         # Viscous drag for PFQNM
-        vdrag = 0.77*1e-6
+        # vdrag = 0.77*1e-6
         # If None it will use the deflection sensitivity from the file
         self.deflection_sensitivity = None # m/V
         # If None it will use the spring constant from the file
@@ -181,27 +227,23 @@ class MainWindow(QMainWindow):
         self.first_ext_seg.get_force_vs_indentation(self.poc, self.spring_constant)
         app_indentation, app_force = self.first_ext_seg.indentation, self.first_ext_seg.force
         #hertz_d0 = HertzModel.d0
-        
-        
         pen = pg.mkPen(color=(0, 0, 255))
-        self.graphWidget = pg.PlotWidget()
-        self.setCentralWidget(self.graphWidget)
-        self.graphWidget.setBackground('w')
-        
-       
-        # self.graphWidget.plot(app_indentation-self.poc[0], app_force-self.poc[1], pen=pen)
+        if not hasattr(self, 'graphWidget'):
+            self.graphWidget = pg.PlotWidget()
+            self.setCentralWidget(self.graphWidget)
+            self.graphWidget.setBackground('w')
+            vori=pg.InfiniteLine(0, angle=90)
+            hori=pg.InfiniteLine(0, angle=0)
+            self.graphWidget.addItem(vori)
+            self.graphWidget.addItem(hori)
+    
         self.graphWidget.plot(app_indentation, app_force, pen=pen)
         
-        vori=pg.InfiniteLine(0, angle=90)
-        hori=pg.InfiniteLine(0, angle=0)
-        self.graphWidget.addItem(vori)
-        self.graphWidget.addItem(hori)
         styles = {'color':'k', 'font-size':'20px'}
         self.graphWidget.setLabel('left', 'Force [Newton]',**styles)
         self.graphWidget.setLabel('bottom', 'Indentation [Meters]',**styles)
-        
-        
-
+    
+    
 
         
     def calculate_poc(self):
@@ -224,13 +266,7 @@ class MainWindow(QMainWindow):
         ret_deflection = last_ret_seg.vdeflection
         
         self.poc = get_poc_RoV_method(app_height, app_deflection, 350e-9)
-        
-        # plt.plot(app_height, app_deflection)
-        # plt.plot(ret_height, ret_deflection)
-        # plt.axvline(x=poc[0], color='r', linestyle='--')
-        # plt.axhline(y=poc[1], color='r', linestyle='--')
-        # plt.grid()
-        # plt.show()  
+    
         
         pen = pg.mkPen(color=(0, 0, 255))
         pen2 = pg.mkPen(color=(255, 128, 0))
