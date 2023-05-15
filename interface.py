@@ -1,3 +1,4 @@
+# Import used for the functions
 import os, sys
 import numpy as np
 import glob
@@ -11,8 +12,7 @@ import matplotlib.pyplot as plt
 from pyafmrheo.utils.force_curves import *
 from pyafmrheo.models.hertz import HertzModel
 
-# interface
-
+# Import used for the interface
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QPushButton, QHBoxLayout, QWidget, QMessageBox
 from pyafmreader import loadfile
 from pyqtgraph import PlotWidget, plot
@@ -26,35 +26,39 @@ class MainWindow(QMainWindow):
         # Set up the main window
         self.setWindowTitle('Plotting datas')
         self.setFixedSize(1280,720)
+        
         # Add a menu bar
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu('File')
         
-
+        
+        
         # Add a "Open" action to the File menu
         open_action = file_menu.addAction('Open a file')
         open_action.triggered.connect(self.open_file)
         
+        # Add a "Plot deflection vs height" action to the File menu
         plot_action = file_menu.addAction('Plot deflection vs height')
         plot_action.triggered.connect(self.plot_data)
         
+        # Add a "Plot PoC" action to the File menu
         analyze_action = file_menu.addAction('Plot the point of contact')
         analyze_action.triggered.connect(self.calculate_poc)
         
-        folder_action = file_menu.addAction('Open a folder')
-        folder_action.triggered.connect(self.open_folder)
-        
+        # Add a "Plot force vs indentation" action to the File menu 
         force_action = file_menu.addAction('Plot force vs indentation')
         force_action.triggered.connect(self.plot_force)
         
+        # Add a "Open" action to the File menu
+        folder_action = file_menu.addAction('Open a folder')
+        folder_action.triggered.connect(self.open_folder)
+        
+        # Activate the button plot in the center of the window
         self.define_buttons()
         self.plot_button.clicked.connect(self.plot_data)
         
         
-        
-        
-        
-    
+    # Define the button plot in the center of the window
     def define_buttons(self):
         hbox = QHBoxLayout()
         self.central_widget = QWidget()
@@ -66,27 +70,47 @@ class MainWindow(QMainWindow):
         hbox.addWidget(self.plot_button)
         
 
-
+    # Function used to open a file 
     def open_file(self):
+
         # Show a file dialog to select a file
         filename, _ = QFileDialog.getOpenFileName(self, 'Open File', '', 'All files (*.*)')
         self.file = self.loadfile(filename)
 
+
+    # Function used to open a folder
     def open_folder(self):
+        # if self.graphWidget :
+        #     self.graphWidget.clear()     
+
         dirname = QFileDialog.getExistingDirectory(
 				self, 'Choose Directory', r'./'
 			)
         if dirname != "" and dirname is not None:
             valid_files = self.getFileList(dirname)
             if valid_files != []:
-                for filename in glob.glob(os.path.join(dirname, '*.jpk-force')):
-                    print (filename)
+                y=[0]*4096
+                i=0
+                for filename in glob.glob(os.path.join(dirname, '*.jpk-force')):                  
                     self.file = self.loadfile(filename)
                     self.collectData()
-                    self.plot_force()
+                    self.plot_force()          
+                #     y=y+self.app_force
+                #     i=i+1
+                    
+                
+                # self.mean=y/i
+                # pen1= pg.mkPen(color=(255, 0, 0))
+                # self.graphWidget.plot(self.app_indentation, self.mean, pen=pen1)
+                
+                # print(self.mean)
+                
                 
                     
                     
+                
+     
+    # Function used to collect datas needed to plot the force vs indentation
     def collectData(self):
         self.deflection_sensitivity = None # m/V
         # If None it will use the spring constant from the file
@@ -121,18 +145,17 @@ class MainWindow(QMainWindow):
         #define pt of contact
         self.poc = get_poc_RoV_method(app_height, app_deflection, 350e-9)
 
-                    
-                    
-                    
     
-
+    # Function used in the opening of a folder
     def getFileList(self, directory):
         types = ('*.jpk-force', '*.jpk-force-map', '*.jpk-qi-data', '*.jpk-force.zip', '*.jpk-force-map.zip', '*.jpk-qi-data.zip', '*.spm', '*.pfc')
         dataset_files = []
         for files in types:
             dataset_files.extend(glob.glob(f'{directory}/**/{files}', recursive=True))
         return dataset_files
+  
     
+    # Function used to read the .jpk-force files
     def loadfile(self, filepath):
         split_path = filepath.split(os.extsep)
         if os.name == 'nt' and split_path[-1] == '.zip':
@@ -155,6 +178,7 @@ class MainWindow(QMainWindow):
             return loadJPKThermalFile(filepath)
 
         
+    # Function used to plot the deflection vs the height for a file
     def plot_data(self):
         # Shapes available: paraboloid, pyramid
         # indenter_shape = "paraboloid"
@@ -222,32 +246,33 @@ class MainWindow(QMainWindow):
         # plt.grid()
         # plt.show()
         
+        
+    # Function used to plot the force vs the indentation for a folder 
     def plot_force(self):
-        # self.poc[1] = 0
         self.first_ext_seg.get_force_vs_indentation(self.poc, self.spring_constant)
-        app_indentation, app_force = self.first_ext_seg.indentation, self.first_ext_seg.force
-        #hertz_d0 = HertzModel.d0
+        self.app_indentation, self.app_force = self.first_ext_seg.indentation, self.first_ext_seg.force
         pen = pg.mkPen(color=(0, 0, 255))
         if not hasattr(self, 'graphWidget'):
             self.graphWidget = pg.PlotWidget()
             self.setCentralWidget(self.graphWidget)
             self.graphWidget.setBackground('w')
-            vori=pg.InfiniteLine(0, angle=90)
-            hori=pg.InfiniteLine(0, angle=0)
+            vori=pg.InfiniteLine(self.poc[0], angle=90)
+            hori=pg.InfiniteLine(self.poc[1], angle=0)
             self.graphWidget.addItem(vori)
             self.graphWidget.addItem(hori)
-    
-        self.graphWidget.plot(app_indentation, app_force, pen=pen)
+            
         
+    
+        self.graphWidget.plot(self.app_indentation, self.app_force, pen=pen)
         styles = {'color':'k', 'font-size':'20px'}
         self.graphWidget.setLabel('left', 'Force [Newton]',**styles)
         self.graphWidget.setLabel('bottom', 'Indentation [Meters]',**styles)
+        # print(self.poc[0])
+        # print(self.poc[1])
     
     
-
-        
+    # Function used to plot and give the coordinates of the PoC    
     def calculate_poc(self):
-        
         
         first_exted_seg_id, self.first_ext_seg = self.extend_segments[0]
 
@@ -265,7 +290,7 @@ class MainWindow(QMainWindow):
         ret_height = last_ret_seg.zheight
         ret_deflection = last_ret_seg.vdeflection
         
-        self.poc = get_poc_RoV_method(app_height, app_deflection, 350e-9)
+        self.poc = get_poc_RoV_method(app_height, app_deflection, 50e-9)
     
         
         pen = pg.mkPen(color=(0, 0, 255))
@@ -289,10 +314,7 @@ class MainWindow(QMainWindow):
         dlg.setWindowTitle("Point of contact coordinates")
         dlg.setText("x: " + str(self.poc[0])+ ", y: " + str(self.poc[1]))
         dlg.exec()        
-       
-
-        
-
+      
      
 if __name__ == '__main__':
     app = QApplication(sys.argv)
