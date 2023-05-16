@@ -90,20 +90,31 @@ class MainWindow(QMainWindow):
             valid_files = self.getFileList(dirname)
             if valid_files != []:
                 y=[0]*4096
+                x=[0]*4096
                 i=0
+                pocx=0
+                pocy=0
                 for filename in glob.glob(os.path.join(dirname, '*.jpk-force')):                  
                     self.file = self.loadfile(filename)
                     self.collectData()
-                    self.plot_force()          
-                #     y=y+self.app_force
-                #     i=i+1
-                    
-                
-                # self.mean=y/i
-                # pen1= pg.mkPen(color=(255, 0, 0))
-                # self.graphWidget.plot(self.app_indentation, self.mean, pen=pen1)
-                
-                # print(self.mean)
+                    self.plot_force()     
+                    x=x+self.app_indentation 
+                    y=y+self.app_force
+                    i=i+1
+                    pocx=pocx+self.poc[0]
+                    pocy=pocy+self.poc[1]
+                self.meanx=x/i
+                self.meany=y/i
+                self.mean_pocx=pocx/i
+                self.mean_pocy=pocy/i
+                vori=pg.InfiniteLine(0, angle=90)
+                hori=pg.InfiniteLine(0, angle=0)
+                self.graphWidget.addItem(vori)
+                self.graphWidget.addItem(hori)
+                pen1= pg.mkPen(color=(255, 0, 0))
+                self.graphWidget.plot(self.meanx-self.mean_pocx, self.meany-self.mean_pocy, pen=pen1)
+                print(self.mean_pocx)
+                print(self.mean_pocy)
                 
                 
                     
@@ -116,7 +127,7 @@ class MainWindow(QMainWindow):
         # If None it will use the spring constant from the file
         self.spring_constant = None # N/m
         self.filemetadata = self.file.filemetadata
-        self.closed_loop = self.filemetadata['z_closed_loop']
+        self.closed_loop = self.filemetadata['z_closed_loop']   
         self.file_deflection_sensitivity = self.filemetadata['defl_sens_nmbyV'] #nm/V
         self.file_spring_constant = self.filemetadata['spring_const_Nbym'] #N/m
         self.height_channel = self.filemetadata['height_channel_key']
@@ -143,7 +154,7 @@ class MainWindow(QMainWindow):
         ret_height = last_ret_seg.zheight
         ret_deflection = last_ret_seg.vdeflection
         #define pt of contact
-        self.poc = get_poc_RoV_method(app_height, app_deflection, 350e-9)
+        self.poc = get_poc_RoV_method(app_height, app_deflection, 700e-9)
 
     
     # Function used in the opening of a folder
@@ -256,14 +267,11 @@ class MainWindow(QMainWindow):
             self.graphWidget = pg.PlotWidget()
             self.setCentralWidget(self.graphWidget)
             self.graphWidget.setBackground('w')
-            vori=pg.InfiniteLine(self.poc[0], angle=90)
-            hori=pg.InfiniteLine(self.poc[1], angle=0)
-            self.graphWidget.addItem(vori)
-            self.graphWidget.addItem(hori)
+            
             
         
     
-        self.graphWidget.plot(self.app_indentation, self.app_force, pen=pen)
+        self.graphWidget.plot(self.app_indentation-self.poc[0], self.app_force-self.poc[1], pen=pen)
         styles = {'color':'k', 'font-size':'20px'}
         self.graphWidget.setLabel('left', 'Force [Newton]',**styles)
         self.graphWidget.setLabel('bottom', 'Indentation [Meters]',**styles)
@@ -290,7 +298,7 @@ class MainWindow(QMainWindow):
         ret_height = last_ret_seg.zheight
         ret_deflection = last_ret_seg.vdeflection
         
-        self.poc = get_poc_RoV_method(app_height, app_deflection, 50e-9)
+        self.poc = get_poc_RoV_method(app_height, app_deflection, 10e-9)
     
         
         pen = pg.mkPen(color=(0, 0, 255))
