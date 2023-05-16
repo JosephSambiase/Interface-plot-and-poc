@@ -8,13 +8,11 @@ from jpk.loadjpkthermalfile import loadJPKThermalFile
 from nanosc.loadnanoscfile import loadNANOSCfile
 from load_uff import loadUFFtxt
 from uff import UFF
-import matplotlib.pyplot as plt
 from pyafmrheo.utils.force_curves import *
-from pyafmrheo.models.hertz import HertzModel
+
 
 # Import used for the interface
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QPushButton, QHBoxLayout, QWidget, QMessageBox
-from pyafmreader import loadfile
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 
@@ -50,7 +48,7 @@ class MainWindow(QMainWindow):
         force_action.triggered.connect(self.plot_force)
         
         # Add a "Open" action to the File menu
-        folder_action = file_menu.addAction('Open a folder')
+        folder_action = file_menu.addAction('Open a folder + plot force vs indentation')
         folder_action.triggered.connect(self.open_folder)
         
         # Activate the button plot in the center of the window
@@ -80,9 +78,6 @@ class MainWindow(QMainWindow):
 
     # Function used to open a folder
     def open_folder(self):
-        # if self.graphWidget :
-        #     self.graphWidget.clear()     
-
         dirname = QFileDialog.getExistingDirectory(
 				self, 'Choose Directory', r'./'
 			)
@@ -113,14 +108,9 @@ class MainWindow(QMainWindow):
                 self.graphWidget.addItem(hori)
                 pen1= pg.mkPen(color=(255, 0, 0))
                 self.graphWidget.plot(self.meanx-self.mean_pocx, self.meany-self.mean_pocy, pen=pen1)
-                print(self.mean_pocx)
-                print(self.mean_pocy)
+           
                 
-                
-                    
-                    
-                
-     
+ 
     # Function used to collect datas needed to plot the force vs indentation
     def collectData(self):
         self.deflection_sensitivity = None # m/V
@@ -153,7 +143,7 @@ class MainWindow(QMainWindow):
         app_deflection = self.first_ext_seg.vdeflection
         ret_height = last_ret_seg.zheight
         ret_deflection = last_ret_seg.vdeflection
-        #define pt of contact
+        # Define poc
         self.poc = get_poc_RoV_method(app_height, app_deflection, 700e-9)
 
     
@@ -191,22 +181,6 @@ class MainWindow(QMainWindow):
         
     # Function used to plot the deflection vs the height for a file
     def plot_data(self):
-        # Shapes available: paraboloid, pyramid
-        # indenter_shape = "paraboloid"
-        # tip_parameter = 30 * 1e-9 # meters
-        # Poisson ratio
-        # poisson_ratio = 0.5
-        # Max non contact region
-        # maxnoncontact = 2.5 * 1e-6
-        # Window to find cp
-        # windowforCP = 70 * 1e-9
-        # Smooth window
-        # smooth_w = 1
-        # t0 scaling factor
-        # t0_scaling = 1
-        # Viscous drag for PFQNM
-        # vdrag = 0.77*1e-6
-        # If None it will use the deflection sensitivity from the file
         self.deflection_sensitivity = None # m/V
         # If None it will use the spring constant from the file
         self.spring_constant = None # N/m
@@ -244,20 +218,6 @@ class MainWindow(QMainWindow):
         self.graphWidget.setLabel('bottom', 'Piezo Height [Meters]',**styles)
 
         
-
-        
-        # t0 = 0
-        # for seg_id, segment in self.force_curve_segments:
-        #     deflection = segment.segment_formated_data["vDeflection"]
-        #     time = segment.segment_formated_data["time"] + t0
-        #     plt.plot(time, deflection)
-        #     t0 = time[-1]
-        # plt.xlabel("Time [s]")
-        # plt.ylabel("Deflection [Volts]")
-        # plt.grid()
-        # plt.show()
-        
-        
     # Function used to plot the force vs the indentation for a folder 
     def plot_force(self):
         self.first_ext_seg.get_force_vs_indentation(self.poc, self.spring_constant)
@@ -267,16 +227,11 @@ class MainWindow(QMainWindow):
             self.graphWidget = pg.PlotWidget()
             self.setCentralWidget(self.graphWidget)
             self.graphWidget.setBackground('w')
-            
-            
-        
-    
+ 
         self.graphWidget.plot(self.app_indentation-self.poc[0], self.app_force-self.poc[1], pen=pen)
         styles = {'color':'k', 'font-size':'20px'}
         self.graphWidget.setLabel('left', 'Force [Newton]',**styles)
         self.graphWidget.setLabel('bottom', 'Indentation [Meters]',**styles)
-        # print(self.poc[0])
-        # print(self.poc[1])
     
     
     # Function used to plot and give the coordinates of the PoC    
@@ -298,7 +253,7 @@ class MainWindow(QMainWindow):
         ret_height = last_ret_seg.zheight
         ret_deflection = last_ret_seg.vdeflection
         
-        self.poc = get_poc_RoV_method(app_height, app_deflection, 10e-9)
+        self.poc = get_poc_RoV_method(app_height, app_deflection, 350e-9)
     
         
         pen = pg.mkPen(color=(0, 0, 255))
@@ -317,7 +272,7 @@ class MainWindow(QMainWindow):
         hLine=pg.InfiniteLine(pos=self.poc[1], angle=0, pen=pen3)
         self.graphWidget.addItem(hLine)
     
-        # display poc coordinates
+        # Display poc coordinates
         dlg = QMessageBox(self)
         dlg.setWindowTitle("Point of contact coordinates")
         dlg.setText("x: " + str(self.poc[0])+ ", y: " + str(self.poc[1]))
