@@ -94,31 +94,97 @@ class MainWindow(QMainWindow):
                     self.plot_force()    
                     k=k+1
                     
-                    bin_size = 10e-9 # Set the bin size
+                    bin_size = 250e-9 # Set the bin size
                     n_bins = int(max(self.app_force) / bin_size) + 1  # Calculate the number of bins
+                    print(n_bins)
                     
-                    for i in range(n_bins):
+                    for i in range(n_bins+1):
                         lower_limit = i * bin_size
                         upper_limit = (i + 1) * bin_size
                         mask = (self.app_force >= lower_limit) & (self.app_force < upper_limit) & (self.app_indentation >= 0)
                         indent_range = self.app_indentation[mask]
                         indentation.append(indent_range)
               
-                sum_indentation=sum(indentation[0])+sum(indentation[46])
-                print(sum_indentation)
-                mean_indentation=sum_indentation/(len(indentation[0])+len(indentation[46]))
+                #Pour 2 fichiers, moyenne de 0 a 10 nN :
                 
-                print(mean_indentation)
+                # sum_indentation=sum(indentation[0])+sum(indentation[46])
+                # print(sum_indentation)
+                # mean_indentation=sum_indentation/(len(indentation[0])+len(indentation[46]))
+                # print(mean_indentation)
                 
-                # for i in range(k-1):
-                #     sum_indentation+=indentation[i*n_bins]
-                #     print(sum_indentation)
-                # mean_indentation=[x/k for x in sum_indentation]
+                
+                #Pour k fichiers, moyenne de 0 a 10 nN :
+                    
+                # mean_indentation=[]
+                # s=0
+                # l=0    
+                # for i in range(k):
+                #     s+=sum(indentation[i*n_bins])
+                #     l+=len(indentation[i*n_bins])
+                # mean_indentation.append(s/l)
+                # print(mean_indentation)
+                
+                #Pour 2 fichiers, de 10 a 20 nN :
+                # s=0
+                
+                # for j in range(n_bins+1): 
+                #     for i in range(k+1):
+                #         s+=sum(indentation[i*n_bins+j])
+                        
+                    
+                indentation = np.array(indentation)
+                indentation = np.array_split(indentation, k)
+                
+                
+                
+                list_mean = []
+                for i in range (k):
+                    for j in range(n_bins):
+                        arr = np.array(indentation[i][j])
+                        list_mean.append(np.mean(arr))
+                print(list_mean)
+                
+                list_mean=np.array(list_mean)
+                list_mean=np.array_split(list_mean, k)
+                print(list_mean[0][0])
+                s=0
+                sum_mean=[]
+                for i in range(k):
+                    for j in range(n_bins):
+                        s+=list_mean[i][j]
+                sum_mean.append(s)
+                
+                print(sum_mean)
+                    
+                
+                        
+                        
+                        
+                
+                
+                
+                
+                
+                # list_mean = np.array(list_mean)
+                # list_mean2 = []
+                # for i in range (k+1):
+                #     for j in range(n_bins+1):
+                #         list_mean[i][j]
+                    
+                        
+                
+                
+                
                 
                     
                  
                     
                  
+                    
+                 
+                    
+                 
+                    
                     # x = np.arange(bin_size / 2, n_bins * bin_size, bin_size)  # X-axis values for the error bars
                     # y = mean_indentation  # Y-axis values
                     
