@@ -94,7 +94,7 @@ class MainWindow(QMainWindow):
                     self.plot_force()    
                     k=k+1
                     
-                    bin_size = 250e-9 # Set the bin size
+                    bin_size = 10e-9 # Set the bin size
                     n_bins = int(max(self.app_force) / bin_size) + 1  # Calculate the number of bins
                     print(n_bins)
                     
@@ -124,37 +124,29 @@ class MainWindow(QMainWindow):
                 # mean_indentation.append(s/l)
                 # print(mean_indentation)
                 
-                #Pour 2 fichiers, de 10 a 20 nN :
-                # s=0
-                
-                # for j in range(n_bins+1): 
-                #     for i in range(k+1):
-                #         s+=sum(indentation[i*n_bins+j])
-                        
-                    
+   
                 indentation = np.array(indentation)
                 indentation = np.array_split(indentation, k)
-                
-                
-                
+                           
                 list_mean = []
                 for i in range (k):
                     for j in range(n_bins):
                         arr = np.array(indentation[i][j])
                         list_mean.append(np.mean(arr))
-                print(list_mean)
+              
                 
                 list_mean=np.array(list_mean)
                 list_mean=np.array_split(list_mean, k)
-                print(list_mean[0][0])
-                s=0
-                sum_mean=[]
-                for i in range(k):
-                    for j in range(n_bins):
-                        s+=list_mean[i][j]
-                sum_mean.append(s)
                 
-                print(sum_mean)
+                sum_mean=[]
+                for i in range(n_bins):
+                    s=0
+                    for j in range(k):
+                        s+=list_mean[j][i]
+                    sum_mean.append(s)
+                
+                mean_indentation = [x / k for x in sum_mean]
+                print(mean_indentation)
                     
                 
                         
