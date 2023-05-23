@@ -93,10 +93,12 @@ class MainWindow(QMainWindow):
                     self.collectData()
                     self.plot_force()    
                     k=k+1
-                    
+
                     bin_size = 10e-9 # Set the bin size
                     n_bins = int(max(self.app_force) / bin_size) + 1  # Calculate the number of bins
-                    print(n_bins)
+                    # print(n_bins)
+                    
+             
                     
                     for i in range(n_bins+1):
                         lower_limit = i * bin_size
@@ -104,39 +106,20 @@ class MainWindow(QMainWindow):
                         mask = (self.app_force >= lower_limit) & (self.app_force < upper_limit) & (self.app_indentation >= 0)
                         indent_range = self.app_indentation[mask]
                         indentation.append(indent_range)
-              
-                #Pour 2 fichiers, moyenne de 0 a 10 nN :
-                
-                # sum_indentation=sum(indentation[0])+sum(indentation[46])
-                # print(sum_indentation)
-                # mean_indentation=sum_indentation/(len(indentation[0])+len(indentation[46]))
-                # print(mean_indentation)
-                
-                
-                #Pour k fichiers, moyenne de 0 a 10 nN :
-                    
-                # mean_indentation=[]
-                # s=0
-                # l=0    
-                # for i in range(k):
-                #     s+=sum(indentation[i*n_bins])
-                #     l+=len(indentation[i*n_bins])
-                # mean_indentation.append(s/l)
-                # print(mean_indentation)
-                
-   
+                           
                 indentation = np.array(indentation)
                 indentation = np.array_split(indentation, k)
+                # print(indentation)
                            
                 list_mean = []
                 for i in range (k):
                     for j in range(n_bins):
                         arr = np.array(indentation[i][j])
                         list_mean.append(np.mean(arr))
-              
-                
+                              
                 list_mean=np.array(list_mean)
-                list_mean=np.array_split(list_mean, k)
+                list_mean=np.array_split(list_mean, k)                
+                # print(list_mean)
                 
                 sum_mean=[]
                 for i in range(n_bins):
@@ -144,45 +127,30 @@ class MainWindow(QMainWindow):
                     for j in range(k):
                         s+=list_mean[j][i]
                     sum_mean.append(s)
-                
                 mean_indentation = [x / k for x in sum_mean]
-                print(mean_indentation)
-                    
+                # print(mean_indentation)
                 
-                        
-                        
-                        
+                new_y=[i*bin_size/2 for i in range(1,2*n_bins,2)]
                 
-                
-                
-                
-                
-                # list_mean = np.array(list_mean)
-                # list_mean2 = []
-                # for i in range (k+1):
-                #     for j in range(n_bins+1):
-                #         list_mean[i][j]
-                    
-                        
+                new_x=[]
+                for i in new_y:
+                    find_x=np.where(self.app_force == i)
+                    new_x.append(find_x)
+                print(new_x)
                 
                 
+                # error = pg.ErrorBarItem(x=new_x, y=new_y, right=mean_indentation, left=mean_indentation, beam=0.5e-9)  
+                # self.graphWidget.addItem(error)  
                 
-                
+                           
+
                     
                  
-                    
-                 
-                    
-                 
-                    
-                 
-                    
-                    # x = np.arange(bin_size / 2, n_bins * bin_size, bin_size)  # X-axis values for the error bars
-                    # y = mean_indentation  # Y-axis values
                     
                     
            
                 
+        
  
     # Function used to collect datas needed to plot the force vs indentation
     def collectData(self):
@@ -303,9 +271,12 @@ class MainWindow(QMainWindow):
  
         self.graphWidget.plot(self.app_indentation-self.poc[0], self.app_force-self.poc[1], pen=pen)
         styles = {'color':'k', 'font-size':'20px'}
+        
         self.graphWidget.setLabel('left', 'Force [Newton]',**styles)
         self.graphWidget.setLabel('bottom', 'Indentation [Meters]',**styles)
-    
+
+        
+            
     
     # Function used to plot and give the coordinates of the PoC    
     def calculate_poc(self):
