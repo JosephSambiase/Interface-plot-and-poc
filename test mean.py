@@ -132,12 +132,16 @@ class MainWindow(QMainWindow):
                 
                 new_y=[i*bin_size/2 for i in range(1,2*n_bins,2)]
                 
-                new_x=[]
+                x_indice=[]
                 for i in new_y:
-                    find_x=np.where(self.app_force == i)
-                    new_x.append(find_x)
-                print(new_x)
+                    find_x_indice=np.where(self.app_force == i)
+                    x_indice.append(find_x_indice)
                 
+                new_x=[]
+                for i in x_indice:
+                    new_x.append(self.app_indentation[i])
+                            
+                print(new_x)
                 
                 # error = pg.ErrorBarItem(x=new_x, y=new_y, right=mean_indentation, left=mean_indentation, beam=0.5e-9)  
                 # self.graphWidget.addItem(error)  
