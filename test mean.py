@@ -131,20 +131,16 @@ class MainWindow(QMainWindow):
                 # print(mean_indentation)
                 
                 new_y=[i*bin_size/2 for i in range(1,2*n_bins,2)]
+                new_y=np.array(new_y)
+                mean_indentation=np.array(mean_indentation)
+               
+                standard_deviation=np.std(mean_indentation)
                 
-                x_indice=[]
-                for i in new_y:
-                    find_x_indice=np.where(self.app_force == i)
-                    x_indice.append(find_x_indice)
-                
-                new_x=[]
-                for i in x_indice:
-                    new_x.append(self.app_indentation[i])
-                            
-                print(new_x)
-                
-                # error = pg.ErrorBarItem(x=new_x, y=new_y, right=mean_indentation, left=mean_indentation, beam=0.5e-9)  
-                # self.graphWidget.addItem(error)  
+                print(mean_indentation)
+                pen1= pg.mkPen(color=(255, 0, 0))
+                self.graphWidget.plot(mean_indentation-self.poc[0], new_y-self.poc[1], pen=pen1,symbol='o')
+                error = pg.ErrorBarItem(x=mean_indentation-self.poc[0], y=new_y-self.poc[1], right=standard_deviation, left=standard_deviation, beam=10e-9)  
+                self.graphWidget.addItem(error)  
                 
                            
 
