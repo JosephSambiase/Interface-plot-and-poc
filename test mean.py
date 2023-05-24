@@ -140,6 +140,9 @@ class MainWindow(QMainWindow):
                 new_y=np.array(new_y)
                 
                 # We convert the mean indentation list in array and calculate the standard deviation to plot the error bars
+               
+                new_y[0]=self.poc[1]
+                mean_indentation[0]=self.poc[0]
                 mean_indentation=np.array(mean_indentation)
                 standard_deviation=np.std(mean_indentation)
      
@@ -280,7 +283,7 @@ class MainWindow(QMainWindow):
         self.graphWidget.setLabel('left', 'Force [Newton]',**styles)
         self.graphWidget.setLabel('bottom', 'Indentation [Meters]',**styles)
 
-
+    
     # Function used to plot and give the coordinates of the Point of Contact 
     def calculate_poc(self):
         
