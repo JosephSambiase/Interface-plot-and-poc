@@ -139,10 +139,13 @@ class MainWindow(QMainWindow):
                 new_y=[i*bin_size/2 for i in range(1,2*n_bins,2)]
                 new_y=np.array(new_y)
                 
-                # We convert the mean indentation list in array and calculate the standard deviation to plot the error bars
-               
+                # We define the first value of y axis to be the y coordinate of point of contact 
                 new_y[0]=self.poc[1]
+                
+                # We define the first value of x axis to be the x coordinate of point of contact 
                 mean_indentation[0]=self.poc[0]
+                
+                # We convert the mean indentation list in array and calculate the standard deviation to plot the error bars
                 mean_indentation=np.array(mean_indentation)
                 standard_deviation=np.std(mean_indentation)
      
