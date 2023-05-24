@@ -12,7 +12,6 @@ from pyafmrheo.utils.force_curves import *
 import numpy as np
 
 
-
 # Import used for the interface
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QPushButton, QHBoxLayout, QWidget, QMessageBox
 from pyqtgraph import PlotWidget, plot
@@ -104,7 +103,6 @@ class MainWindow(QMainWindow):
                     list_bins.sort()
                     n_bins=list_bins[0]
            
-                    
                     # We recover every indentations that are in every bin. Here it recovers indentations from 0-10 nN then 10-20 nN etc...
                     for i in range(n_bins+1):
                         lower_limit = i * bin_size
@@ -116,11 +114,7 @@ class MainWindow(QMainWindow):
                 # We convert it in array and split it in k which is the number of files 
                 indentation = np.array(indentation)
                 indentation = np.array_split(indentation, k)
-                
-                
-                
-                
-                
+  
                 # Here we calculate the mean of the indentations recovered previously for every file
                 list_mean = []
                 for i in range (k):
@@ -141,7 +135,6 @@ class MainWindow(QMainWindow):
                     sum_mean.append(s)
                 mean_indentation = [x / k for x in sum_mean]
                 
-                
                 # Define a new force axis with a point in the middle of every bin 
                 new_y=[i*bin_size/2 for i in range(1,2*n_bins,2)]
                 new_y=np.array(new_y)
@@ -149,9 +142,7 @@ class MainWindow(QMainWindow):
                 # We convert the mean indentation list in array and calculate the standard deviation to plot the error bars
                 mean_indentation=np.array(mean_indentation)
                 standard_deviation=np.std(mean_indentation)
-                
-                print(mean_indentation)
-                
+     
                 # Plot the error bars 
                 pen1= pg.mkPen(color=(255, 0, 0))
                 self.graphWidget.plot(mean_indentation-self.poc[0], new_y-self.poc[1], pen=pen1,symbol='o')
@@ -162,14 +153,7 @@ class MainWindow(QMainWindow):
                 # error = pg.ErrorBarItem(x=mean_indentation, y=new_y, right=standard_deviation, left=standard_deviation, beam=10e-9)  
                 # self.graphWidget.addItem(error)                             
 
-                    
-                 
-                    
-                    
-           
-                
-        
- 
+
     # Function used to collect datas needed to plot the force vs indentation
     def collectData(self):
         self.deflection_sensitivity = None # m/V
@@ -204,7 +188,7 @@ class MainWindow(QMainWindow):
         ret_deflection = last_ret_seg.vdeflection
         
         # Get the coordinates of the point of contact by using the ratio of variances method
-        self.poc = get_poc_RoV_method(app_height, app_deflection, 700e-9)
+        self.poc = get_poc_RoV_method(app_height, app_deflection, 900e-9)
 
     
     # Function used in the opening of a folder
@@ -283,7 +267,6 @@ class MainWindow(QMainWindow):
         self.first_ext_seg.get_force_vs_indentation(self.poc, self.spring_constant)
         self.app_indentation, self.app_force = self.first_ext_seg.indentation, self.first_ext_seg.force
         
-        
         # Plot the curves of every files on the same graph
         if not hasattr(self, 'graphWidget'):
             self.graphWidget = pg.PlotWidget()
@@ -297,9 +280,7 @@ class MainWindow(QMainWindow):
         self.graphWidget.setLabel('left', 'Force [Newton]',**styles)
         self.graphWidget.setLabel('bottom', 'Indentation [Meters]',**styles)
 
-        
-            
-    
+
     # Function used to plot and give the coordinates of the Point of Contact 
     def calculate_poc(self):
         
