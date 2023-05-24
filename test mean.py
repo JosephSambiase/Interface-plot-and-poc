@@ -10,7 +10,7 @@ from load_uff import loadUFFtxt
 from uff import UFF
 from pyafmrheo.utils.force_curves import *
 import numpy as np
-import matplotlib.pyplot as plt
+
 
 
 # Import used for the interface
@@ -30,8 +30,6 @@ class MainWindow(QMainWindow):
         # Add a menu bar
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu('File')
-        
-        
         
         # Add a "Open" action to the File menu
         open_action = file_menu.addAction('Open a file')
@@ -87,7 +85,10 @@ class MainWindow(QMainWindow):
             valid_files = self.getFileList(dirname)
             if valid_files != []:
                 indentation = []
-                k=0
+                k=0 # k is the number of .jpk-force files
+                list_bins=[]
+                
+                # We make a loop to plot the force vs indentation for every file
                 for filename in glob.glob(os.path.join(dirname, '*.jpk-force')):                  
                     self.file = self.loadfile(filename)
                     self.collectData()
@@ -95,32 +96,43 @@ class MainWindow(QMainWindow):
                     k=k+1
 
                     bin_size = 10e-9 # Set the bin size
-                    n_bins = int(max(self.app_force) / bin_size) + 1  # Calculate the number of bins
-                    # print(n_bins)
+                    bins = int(max(self.app_force) / bin_size) + 1  # Calculate the number of bins
+                    list_bins.append(bins)
+                    print(list_bins)
                     
-             
+                    # The files can have differentsame number of bins. So we take the number of bins equals to the one that is the smallest
+                    list_bins.sort()
+                    n_bins=list_bins[0]
+           
                     
+                    # We recover every indentations that are in every bin. Here it recovers indentations from 0-10 nN then 10-20 nN etc...
                     for i in range(n_bins+1):
                         lower_limit = i * bin_size
                         upper_limit = (i + 1) * bin_size
                         mask = (self.app_force >= lower_limit) & (self.app_force < upper_limit) & (self.app_indentation >= 0)
                         indent_range = self.app_indentation[mask]
                         indentation.append(indent_range)
-                           
+                
+                # We convert it in array and split it in k which is the number of files 
                 indentation = np.array(indentation)
                 indentation = np.array_split(indentation, k)
-                # print(indentation)
-                           
+                
+                
+                
+                
+                
+                # Here we calculate the mean of the indentations recovered previously for every file
                 list_mean = []
                 for i in range (k):
                     for j in range(n_bins):
                         arr = np.array(indentation[i][j])
                         list_mean.append(np.mean(arr))
-                              
+                
+                # We convert it in array and split in in  k
                 list_mean=np.array(list_mean)
                 list_mean=np.array_split(list_mean, k)                
-                # print(list_mean)
                 
+                # Now we sum the bins from every file and make a mean. Sum of the indentation from 0-10 nN from every file divided by the number of files etc...
                 sum_mean=[]
                 for i in range(n_bins):
                     s=0
@@ -128,21 +140,27 @@ class MainWindow(QMainWindow):
                         s+=list_mean[j][i]
                     sum_mean.append(s)
                 mean_indentation = [x / k for x in sum_mean]
-                # print(mean_indentation)
                 
+                
+                # Define a new force axis with a point in the middle of every bin 
                 new_y=[i*bin_size/2 for i in range(1,2*n_bins,2)]
                 new_y=np.array(new_y)
+                
+                # We convert the mean indentation list in array and calculate the standard deviation to plot the error bars
                 mean_indentation=np.array(mean_indentation)
-               
                 standard_deviation=np.std(mean_indentation)
                 
                 print(mean_indentation)
+                
+                # Plot the error bars 
                 pen1= pg.mkPen(color=(255, 0, 0))
                 self.graphWidget.plot(mean_indentation-self.poc[0], new_y-self.poc[1], pen=pen1,symbol='o')
                 error = pg.ErrorBarItem(x=mean_indentation-self.poc[0], y=new_y-self.poc[1], right=standard_deviation, left=standard_deviation, beam=10e-9)  
                 self.graphWidget.addItem(error)  
                 
-                           
+                # self.graphWidget.plot(mean_indentation, new_y, pen=pen1,symbol='o')
+                # error = pg.ErrorBarItem(x=mean_indentation, y=new_y, right=standard_deviation, left=standard_deviation, beam=10e-9)  
+                # self.graphWidget.addItem(error)                             
 
                     
                  
@@ -184,7 +202,8 @@ class MainWindow(QMainWindow):
         app_deflection = self.first_ext_seg.vdeflection
         ret_height = last_ret_seg.zheight
         ret_deflection = last_ret_seg.vdeflection
-        # Define poc
+        
+        # Get the coordinates of the point of contact by using the ratio of variances method
         self.poc = get_poc_RoV_method(app_height, app_deflection, 700e-9)
 
     
@@ -242,12 +261,12 @@ class MainWindow(QMainWindow):
         self.retract_segments = self.force_curve.retract_segments
         self.force_curve_segments = self.force_curve.get_segments()
         
-        
+        # Define a graph
         self.graphWidget = pg.PlotWidget()
         self.setCentralWidget(self.graphWidget)
         self.graphWidget.setBackground('w')
         
-        
+        # Plot the curve
         colors = [ (0, 0, 255),(255, 128, 0)] # define orange and blue colors
         for i, (seg_id, segment) in enumerate(self.force_curve_segments):
             height = segment.segment_formated_data[self.height_channel]
@@ -263,22 +282,25 @@ class MainWindow(QMainWindow):
     def plot_force(self):
         self.first_ext_seg.get_force_vs_indentation(self.poc, self.spring_constant)
         self.app_indentation, self.app_force = self.first_ext_seg.indentation, self.first_ext_seg.force
-        pen = pg.mkPen(color=(0, 0, 255))
+        
+        
+        # Plot the curves of every files on the same graph
         if not hasattr(self, 'graphWidget'):
             self.graphWidget = pg.PlotWidget()
             self.setCentralWidget(self.graphWidget)
             self.graphWidget.setBackground('w')
  
+        pen = pg.mkPen(color=(0, 0, 255))
         self.graphWidget.plot(self.app_indentation-self.poc[0], self.app_force-self.poc[1], pen=pen)
-        styles = {'color':'k', 'font-size':'20px'}
-        
+        # self.graphWidget.plot(self.app_indentation, self.app_force, pen=pen)
+        styles = {'color':'k', 'font-size':'20px'}   
         self.graphWidget.setLabel('left', 'Force [Newton]',**styles)
         self.graphWidget.setLabel('bottom', 'Indentation [Meters]',**styles)
 
         
             
     
-    # Function used to plot and give the coordinates of the PoC    
+    # Function used to plot and give the coordinates of the Point of Contact 
     def calculate_poc(self):
         
         first_exted_seg_id, self.first_ext_seg = self.extend_segments[0]
@@ -299,11 +321,9 @@ class MainWindow(QMainWindow):
         
         self.poc = get_poc_RoV_method(app_height, app_deflection, 350e-9)
     
-        
         pen = pg.mkPen(color=(0, 0, 255))
         pen2 = pg.mkPen(color=(255, 128, 0))
         pen3 = pg.mkPen(color=(255, 0, 0))
-        
         
         self.graphWidget = pg.PlotWidget()
         self.setCentralWidget(self.graphWidget) 
