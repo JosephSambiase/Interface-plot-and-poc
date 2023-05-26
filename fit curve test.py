@@ -253,6 +253,8 @@ class MainWindow(QMainWindow):
         
     # Function used to plot the deflection vs the height for a file
     def plot_data(self):
+        
+        # Recover all necessary data from the file
         self.deflection_sensitivity = None # m/V
         # If None it will use the spring constant from the file
         self.spring_constant = None # N/m
@@ -261,7 +263,6 @@ class MainWindow(QMainWindow):
         self.file_deflection_sensitivity = self.filemetadata['defl_sens_nmbyV'] #nm/V
         self.file_spring_constant = self.filemetadata['spring_const_Nbym'] #N/m
         self.height_channel = self.filemetadata['height_channel_key']
-
         if not self.deflection_sensitivity: self.deflection_sensitivity = self.file_deflection_sensitivity / 1e9 #m/V
         if not self.spring_constant: self.spring_constant = self.file_spring_constant
 
@@ -312,63 +313,64 @@ class MainWindow(QMainWindow):
     # Function used to plot and give the coordinates of the Point of Contact 
     def calculate_poc(self):
         
+        # Recover all necessary data from the file
         first_exted_seg_id, self.first_ext_seg = self.extend_segments[0]
-
         self.first_ext_seg.preprocess_segment(self.deflection_sensitivity, self.height_channel)
-
         last_ret_seg_id, last_ret_seg = self.retract_segments[-1]
-        last_ret_seg.preprocess_segment(self.deflection_sensitivity, self.height_channel)
-   
+        last_ret_seg.preprocess_segment(self.deflection_sensitivity, self.height_channel)   
         xzero = last_ret_seg.zheight[-1] # Maximum height
         self.first_ext_seg.zheight = xzero - self.first_ext_seg.zheight
         last_ret_seg.zheight = xzero - last_ret_seg.zheight
-
         app_height = self.first_ext_seg.zheight
         app_deflection = self.first_ext_seg.vdeflection
         ret_height = last_ret_seg.zheight
-        ret_deflection = last_ret_seg.vdeflection
-        
+        ret_deflection = last_ret_seg.vdeflection        
         self.poc = get_poc_RoV_method(app_height, app_deflection, 350e-9)
-        
+
+        # Recover the indentation data and force data from the file
         self.first_ext_seg.get_force_vs_indentation(self.poc, self.spring_constant)
         self.app_indentation, self.app_force = self.first_ext_seg.indentation, self.first_ext_seg.force
         
+        # We only fit 1/4 of the max force from the file, no need to take all the points
         max_force=max(self.app_force) 
         force_division=np.where(self.app_force>=max_force/4)
         new_len=force_division[0][0]
-     
         new_app_indentation=self.app_indentation[0:new_len]
         new_app_force=self.app_force[0:new_len]
         
-        # Definition du model du fit, ici une fonction affine
+        # Definition of the fit model, here an affine function
         def model_f(x,a,b):
             return a*x+b
         
+        # We calculate a good approximation for both a and b parameters
         popt, pcov = curve_fit(model_f, new_app_indentation, new_app_force) 
         a_opt, b_opt = popt
         
+        # These are the x axis and y axis for the fit 
         x_model = np.linspace(min(new_app_indentation), max(new_app_indentation), new_len)
         y_model = model_f(x_model, a_opt, b_opt)      
         
+        # We calculate the subtraction between force and fit and take the minimum, which will give us the point of contact
         minus_y=new_app_force-y_model  
         min_ind=minus_y.argmin()
         
+        # Here are the coordinates of the point of contact
         self.corrected_poc_x = self.app_indentation[min_ind]
         self.corrected_poc_y = self.app_force[min_ind]
         
         self.graphWidget = pg.PlotWidget()
         self.setCentralWidget(self.graphWidget) 
         self.graphWidget.setBackground('w')
-
         pen = pg.mkPen(color=(0, 0, 255))
         pen3 = pg.mkPen(color=(255, 0, 0))
         
+        # We plot the new indentation and force axis which correspond to 1/4 of the max force 
+        # + We plot a vertical and horizontal line to make the point of contact more visible
         self.graphWidget.plot(new_app_indentation, new_app_force, pen=pen)
         vLine=pg.InfiniteLine(pos=self.corrected_poc_x, angle=90, pen=pen3)
         self.graphWidget.addItem(vLine)
         hLine=pg.InfiniteLine(pos=self.corrected_poc_y, angle=0, pen=pen3)
         self.graphWidget.addItem(hLine)
-        
         styles = {'color':'k', 'font-size':'20px'}   
         self.graphWidget.setLabel('left', 'Force [Newton]',**styles)
         self.graphWidget.setLabel('bottom', 'Indentation [Meters]',**styles)
