@@ -100,6 +100,7 @@ class MainWindow(QMainWindow):
                     # The files can have differentsame number of bins. So we take the number of bins equals to the one that is the smallest
                     list_bins.sort()
                     n_bins=list_bins[0]
+                    
            
                     # We recover every indentations that are in every bin. Here it recovers indentations from 0-10 nN then 10-20 nN etc...
                     for i in range(n_bins+1):
@@ -131,12 +132,15 @@ class MainWindow(QMainWindow):
                     for j in range(k):
                         s+=list_mean[j][i]
                     sum_mean.append(s)
+                    
+                
                 mean_indentation = [x / k for x in sum_mean]
                 
                 # Define a new force axis with a point in the middle of every bin 
                 new_y=[i*bin_size/2 for i in range(1,2*n_bins,2)]
                 new_y=np.array(new_y)
                 
+               
                 # We define the first value of y axis to be the y coordinate of point of contact 
                 new_y[0]=self.corrected_poc_y
                 
@@ -148,7 +152,7 @@ class MainWindow(QMainWindow):
                 standard_deviation=np.std(mean_indentation)
      
                 # Plot the error bars 
-                pen1= pg.mkPen(color=(255, 0, 0))
+                pen1= pg.mkPen(color=(255, 0, 0), width=7)
                 self.graphWidget.plot(mean_indentation-self.corrected_poc_x, new_y-self.corrected_poc_y, pen=pen1,symbol='o')
                 error = pg.ErrorBarItem(x=mean_indentation-self.corrected_poc_x, y=new_y-self.corrected_poc_y, right=standard_deviation, left=standard_deviation, beam=10e-9)  
                 self.graphWidget.addItem(error)  
@@ -187,7 +191,7 @@ class MainWindow(QMainWindow):
         ret_height = last_ret_seg.zheight
         ret_deflection = last_ret_seg.vdeflection
         
-        # Get the coordinates of the point of contact by using the ratio of variances method
+        # Get the coordinates of the point of contact 
         
         self.poc = get_poc_RoV_method(app_height, app_deflection, 350e-9)
         
@@ -284,7 +288,7 @@ class MainWindow(QMainWindow):
         for i, (seg_id, segment) in enumerate(self.force_curve_segments):
             height = segment.segment_formated_data[self.height_channel]
             deflection = segment.segment_formated_data["vDeflection"]
-            pen = pg.mkPen(color=colors[i%len(colors)]) # set the color based on index
+            pen = pg.mkPen(color=colors[i%len(colors)], width=5) # set the color based on index
             self.graphWidget.plot(height, deflection, pen=pen)
         styles = {'color':'k', 'font-size':'20px'}
         self.graphWidget.setLabel('left', 'vDeflection [Volts]',**styles)
@@ -304,7 +308,6 @@ class MainWindow(QMainWindow):
  
         pen = pg.mkPen(color=(0, 0, 255))
         self.graphWidget.plot(self.app_indentation-self.corrected_poc_x, self.app_force-self.corrected_poc_y, pen=pen)
-        # self.graphWidget.plot(self.app_indentation, self.app_force, pen=pen)
         styles = {'color':'k', 'font-size':'20px'}   
         self.graphWidget.setLabel('left', 'Force [Newton]',**styles)
         self.graphWidget.setLabel('bottom', 'Indentation [Meters]',**styles)
@@ -314,6 +317,24 @@ class MainWindow(QMainWindow):
     def calculate_poc(self):
         
         # Recover all necessary data from the file
+        self.deflection_sensitivity = None # m/V
+        # If None it will use the spring constant from the file
+        self.spring_constant = None # N/m
+        self.filemetadata = self.file.filemetadata
+        self.closed_loop = self.filemetadata['z_closed_loop']
+        self.file_deflection_sensitivity = self.filemetadata['defl_sens_nmbyV'] #nm/V
+        self.file_spring_constant = self.filemetadata['spring_const_Nbym'] #N/m
+        self.height_channel = self.filemetadata['height_channel_key']
+        if not self.deflection_sensitivity: self.deflection_sensitivity = self.file_deflection_sensitivity / 1e9 #m/V
+        if not self.spring_constant: self.spring_constant = self.file_spring_constant
+
+        self.curve_idx = 0
+        self.force_curve = self.file.getcurve(self.curve_idx)
+        self.extend_segments = self.force_curve.extend_segments
+        self.pause_segments = self.force_curve.pause_segments
+        self.modulation_segments = self.force_curve.modulation_segments
+        self.retract_segments = self.force_curve.retract_segments
+        self.force_curve_segments = self.force_curve.get_segments()
         first_exted_seg_id, self.first_ext_seg = self.extend_segments[0]
         self.first_ext_seg.preprocess_segment(self.deflection_sensitivity, self.height_channel)
         last_ret_seg_id, last_ret_seg = self.retract_segments[-1]
@@ -361,8 +382,8 @@ class MainWindow(QMainWindow):
         self.graphWidget = pg.PlotWidget()
         self.setCentralWidget(self.graphWidget) 
         self.graphWidget.setBackground('w')
-        pen = pg.mkPen(color=(0, 0, 255))
-        pen3 = pg.mkPen(color=(255, 0, 0))
+        pen = pg.mkPen(color=(0, 0, 255),width=7)
+        pen3 = pg.mkPen(color=(255, 0, 0),width=5)
         
         # We plot the new indentation and force axis which correspond to 1/4 of the max force 
         # + We plot a vertical and horizontal line to make the point of contact more visible
@@ -387,4 +408,3 @@ if __name__ == '__main__':
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
-
